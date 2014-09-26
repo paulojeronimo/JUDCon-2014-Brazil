@@ -1,0 +1,577 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1" name="viewport"><title>PJ @ JUDCon 2014 Brazil</title><link href="http://paulojeronimo.github.io/JUDCon-2014-Brazil/css/bootstrap.min.css" rel="stylesheet"><link href="http://paulojeronimo.github.io/JUDCon-2014-Brazil/css/JUDCon-2014-Brazil.css" rel="stylesheet"></head><body><div class="navbar navbar-default navbar-fixed-top" role="navigation"><div class="container"><div class="navbar-header"><button class="navbar-toggle collapsed" data-target=".navbar-collapse" data-toggle="collapse" type="button"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="index.html">PJ @ JUDCon 2014 Brazil</a></div><div class="collapse navbar-collapse"><ul class="nav navbar-nav"><li><a href="/JUDCon-2014-Brazil/tutorial.html">Tutorial</a></li><li><a href="/JUDCon-2014-Brazil/about.html">About</a></li><li><a href="/JUDCon-2014-Brazil/acknowledgments.html">Acknowledgments</a></li></ul></div></div></div><div class="container"><div class="sect1">
+<h2 id="resumo"><a class="anchor" href="#resumo"></a>Resumo</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Nesse tutorial eu explico fundamentos e conceitos para a execução do <a href="https://www.docker.com/">Docker</a> no <a href="https://fedoraproject.org/">Fedora 20</a>. Esses conceitos também se aplicam ao <a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/">RHEL 7</a>. Então, eu exploro um caso de uso: a instalação e a configuração do <a href="http://wildfly.org/">WildFly</a> e do <a href="http://wildfly.org/">RHQ</a> nesse ambiente. Este tutorial foi projetado inicialmente para ser apresentado em <a href="http://www.jboss.org/events/JUDCon/2014/brazil/speakers.html#wildfly">minha palestra no JUDCon Brazil 2014</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="background-teórico-sobre-o-docker"><a class="anchor" href="#background-teórico-sobre-o-docker"></a>Background teórico sobre o Docker</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="o-que-é-o-docker"><a class="anchor" href="#o-que-é-o-docker"></a>O que é o Docker?</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://www.docker.com/whatisdocker/" class="bare">https://www.docker.com/whatisdocker/</a></p>
+</li>
+<li>
+<p><a href="https://www.docker.com/tryit/" class="bare">https://www.docker.com/tryit/</a></p>
+</li>
+<li>
+<p>Plataforma aberta para desenvolvedores e sysadmins</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Para construir, implantar e executar aplicações distribuídas</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="sect3">
+<h4 id="porque-os-desenvolvedores-gostam-dele"><a class="anchor" href="#porque-os-desenvolvedores-gostam-dele"></a>Porque os desenvolvedores gostam dele?</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>Desenvolvedores utilizam o docker para criar aplicações que rodam de maneira padrão em qualquer lugar:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Laptops com OS X, Windows ou Linux</p>
+</li>
+<li>
+<p>Servidores na nuvem rodando Ubuntu, Red Hat, &#8230;&#8203;</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="porque-os-sysadmins-gostam-dele"><a class="anchor" href="#porque-os-sysadmins-gostam-dele"></a>Porque os sysadmins gostam dele?</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>Sysadmins utilizam o docker para prover ambientes para times de:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Desenvolvimento, QA, produção</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="arquitetura"><a class="anchor" href="#arquitetura"></a>Arquitetura</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>O docker possui uma arquitetura cliente/servidor</p>
+</li>
+<li>
+<p><a href="https://docs.docker.com/introduction/understanding-docker/#the-docker-client">Docker client</a> conversa com <a href="https://docs.docker.com/introduction/understanding-docker/#the-docker-daemon">Docker daemon</a></p>
+<div class="ulist">
+<ul>
+<li>
+<p>Client pode se conectar a um daemon remoto ou local (mesmo sistema)</p>
+</li>
+<li>
+<p>Client e daemon se comunicam via sockets ou através de uma API RESTful</p>
+</li>
+<li>
+<p>Client aceita comandos do usuário e faz a comunicação com o daemon</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Docker daemon executa na máquina Host</p>
+<div class="ulist">
+<ul>
+<li>
+<p>O usuário nunca interage diretamente com o daemon mas sim com o client</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="https://docs.docker.com/article-img/architecture.svg" alt="Architecture">
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="componentes-internos"><a class="anchor" href="#componentes-internos"></a>Componentes internos</h4>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.docker.com/introduction/understanding-docker/#inside-docker">Docker images</a></p>
+<div class="ulist">
+<ul>
+<li>
+<p>São templates (somente leitura)</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Podem conter um sistema operacional e aplicações instaladas</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>São utilizadas para criar contêineres</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Docker Registries</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Armazenam docker images</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Provêem upload e download de docker images</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>São privados ou públicos</p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="http://hub.docker.com/">Docker Hub</a> é o "armazém" público</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Docker contêineres</p>
+<div class="ulist">
+<ul>
+<li>
+<p>São similares a diretórios</p>
+</li>
+<li>
+<p>Armazenam tudo o que é necessário para uma aplicação ser executada</p>
+</li>
+<li>
+<p>São executados, iniciados, parados, movidos e removidos</p>
+</li>
+<li>
+<p>Cada contêiner é uma plataforma segura e isolada de aplicações</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
+<h4 id="como-o-docker-funciona"><a class="anchor" href="#como-o-docker-funciona"></a>Como o Docker funciona?</h4>
+<div class="ulist">
+<ul>
+<li>
+<p>Você faz o build de images que armazenam suas aplicações</p>
+</li>
+<li>
+<p>Você cria contêineres a partir desses images para executar suas aplicações</p>
+</li>
+<li>
+<p>Você compartilha suas images via Docker Hub ou no seu próprio registry</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="instalando-o-docker-no-fedora"><a class="anchor" href="#instalando-o-docker-no-fedora"></a>Instalando o Docker no Fedora</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="http://docs.docker.com/installation/fedora/" class="bare">http://docs.docker.com/installation/fedora/</a></p>
+</li>
+<li>
+<p><a href="https://goldmann.pl/blog/2013/09/25/docker-and-fedora/" class="bare">https://goldmann.pl/blog/2013/09/25/docker-and-fedora/</a></p>
+</li>
+<li>
+<p>Docker pode ser executado numa máquina real ou numa VM (não importa)</p>
+<div class="ulist">
+<ul>
+<li>
+<p>O fato: A arquitetura precisa ser 64 bits e executar um kernel Linux</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="baixando-e-executando-uma-vm-fedora-20-no-virtualbox"><a class="anchor" href="#baixando-e-executando-uma-vm-fedora-20-no-virtualbox"></a>Baixando e executando uma VM Fedora 20 no VirtualBox</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Instale o <a href="http://virtualbox.org">VirtualBox</a></p>
+</li>
+<li>
+<p>Instale o <a href="http://7zip.org">7zip</a></p>
+</li>
+<li>
+<p>Baixe <a href="http://gdriv.es/vm-fedora">minha vm-fedora</a></p>
+<div class="ulist">
+<ul>
+<li>
+<p>Se desejar, <a href="https://github.com/paulojeronimo/vms/">leia como eu faço sua criação</a></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Para fazer o seu download, extraí-la e colocá-la em funcionamento, execute:</p>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>cd ~/VirtualBox\ VMs/
+bash &lt;(curl -L http://j.mp/vm-fedora-download)
+7za x vm-fedora.7z.001
+VBoxManage registervm "$PWD/vm-fedora/vm-fedora.vbox"
+VBoxManage startvm vm-fedora</pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Também poderíamos utilizar o <a href="https://www.vagrantup.com/">Vagrant</a> (leia <a href="http://paulojeronimo.github.io/tutorial-vagrant/">o tutorial que escrevi a seu respeito</a>) ou uma máquina não virtualizada com a instalação do Fedora 20. Mas, neste tutorial, não estou utilizando-o.</em></p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="configurando-a-vm-para-acesso-a-partir-de-uma-console-do-host"><a class="anchor" href="#configurando-a-vm-para-acesso-a-partir-de-uma-console-do-host"></a>Configurando a VM para acesso a partir de uma console do HOST</h3>
+<div class="paragraph">
+<p>Apenas como exemplo (não execute), uma alternativa para acessar a console da VM no HOST seria criar um túnel reverso fazendo um ssh da console da VM para o HOST:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">ssh -f -N -R 2222:localhost:22 pj@base</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Dessa forma, a partir da console do HOST poderíamos acessar o HOST com os seguintes comandos:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>ssh-copy-id -p 2222 aluno@localhost
+ssh -p 2222 aluno@localhost</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>O problema de fazer isso é que, mais a frente nesse tutorial, testaremos o acesso ao WildFly através de um IP válido para o HOST ao invés de fazermos túeis para as portas 8080 e 9990. Então, precisaremos parar a VM e fazer algumas configurações:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">VBoxManage acpipowerbutton vm-fedora
+VBoxManage hostonlyif create
+VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.0.253 --netmask 255.255.255.0
+VBoxManage modifyvm vm-fedora --nic2 hostonly --hostonlyadapter2 vboxnet0
+VBoxManage startvm vm-fedora
+f=/etc/hosts; sudo sed -i '' '/vm-fedora/d' $f
+echo -e "192.168.0.254\tvm-fedora" | sudo tee -a $f</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Logue-se como aluno (senha: @lun0123) na console da VM e execute:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">cat &lt;&lt;'EOF' | sudo tee /etc/sysconfig/network-scripts/ifcfg-static-p7p1
+DEVICE=p7p1
+BOOTPROTO=none
+ONBOOT=yes
+IPADDR=192.168.0.254
+PREFIX=24
+GATEWAY=192.168.0.254
+EOF
+sudo nmcli con reload
+sudo nmcli con up "System static-p7p1"
+ping 192.168.0.253
+sudo yum -y install vim tree lynx</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Volte ao console do HOST e execute:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">ping vm-fedora
+ssh-copy-id aluno@vm-fedora
+ssh aluno@vm-fedora</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="instalando-o-docker"><a class="anchor" href="#instalando-o-docker"></a>Instalando o Docker</h3>
+<div class="paragraph">
+<p>Na VM, execute:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo yum -y install docker-io
+sudo systemctl start docker
+sudo systemctl enable docker</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="procurando-contêineres-no-docker-hub"><a class="anchor" href="#procurando-contêineres-no-docker-hub"></a>Procurando contêineres no Docker Hub</h3>
+<div class="paragraph">
+<p>Na VM, execute:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker search fedora | less
+sudo docker search wildfly | less
+sudo docker search rhq | less</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="baixando-e-executando-a-imagem-de-um-contêiner"><a class="anchor" href="#baixando-e-executando-a-imagem-de-um-contêiner"></a>Baixando e executando a imagem de um contêiner</h3>
+<div class="paragraph">
+<p>Na VM, execute:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker run -i -t fedora /bin/bash</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Parâmetros:
+. <code>run</code> - executa um contêiner
+. <code>-i</code> - mantem o stdin aberto, mesmo que não haja nada anexado
+. <code>-t</code> - aloca um pseudo terminal, dessa forma podermos interagir diretamente com o contêiner
+. <code>fedora</code> - ID da imagem, pode ser uma tag ou um hash (id)
+. <code>/bin/bash</code> - o comando que será executado após o contêiner ser iniciado
+Detalhes:
+. Se o contêiner não estiver no cache local ele será baixado
+.. Se quiséssesmos apenas baixar essa imagem, sem executar nada, poderíamos simplesmente rodar <code>sudo docker pull fedora</code>
+. O prompt de comando apresentado será da forma root@&lt;id&gt;</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="gerenciamento-básico-do-contêiner"><a class="anchor" href="#gerenciamento-básico-do-contêiner"></a>Gerenciamento básico do contêiner</h3>
+<div class="paragraph">
+<p>Pare o contêiner pressionando <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>D</kbd></span>
+* O contêiner será parado mas, poderá ser reiniciado ou removido
+Para remover o contêiner, você precisará saber seu id
+* O comando <code>sudo docker ps</code> mostra o id dos contêineres em execução
+Para ver todos os contêineres, inclusive os parados, execute <code>sudo docker ps -a</code>
+Observemos a seguir a saída de meu último comando:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                      PORTS               NAMES
+d30ae9376851        fedora:latest       "/bin/bash"         27 minutes ago      Exited (0) 24 minutes ago                       drunk_curie</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Removamos o contêiner, como no exemplo que eu apresento abaixo (substitua o id pelo que é apresentado na tua saída):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker rm d30ae9376851</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Reexecutemos o contêiner:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker run -i -t fedora /bin/bash</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Listemos as images instaladas:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker images</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Vejamos, buscando e instalando, o espaço ocupado por uma image. Em seguida façamos sua remoção.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker search centos | grep tomcat | grep jdk
+sudo docker pull toprightgroup/narwhal-centos7-jdk7-tomcat8
+sudo docker images</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Observemos a saída do último comando</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>REPOSITORY                                   TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+fedora                                       rawhide             fdc0b700f96b        12 hours ago        379.5 MB
+fedora                                       21                  a0ebecffd812        12 hours ago        375.8 MB
+fedora                                       20                  5cc8a068a737        12 hours ago        374 MB
+fedora                                       heisenbug           5cc8a068a737        12 hours ago        374 MB
+fedora                                       latest              5cc8a068a737        12 hours ago        374 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   master              3c7716848106        4 weeks ago         621.5 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   b1                  7441456d75c2        6 weeks ago         618.2 MB</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Para remover a image toprightgroup/narwhal-centos7-jdk7-tomcat8 (que não será utilizada e está ocupando mais de 1 GB no disco) e depois verificar, basta fazermos:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker rmi 3c7
+sudo docker rmi 744
+sudo docker images</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="docker-em-projetos-jboss"><a class="anchor" href="#docker-em-projetos-jboss"></a>Docker em projetos JBoss</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>O JBoss possui vários projetos utilizando o Docker. Leia mais sobre isso nos seguintes links:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="http://www.jboss.org/docker/" class="bare">http://www.jboss.org/docker/</a></p>
+</li>
+<li>
+<p><a href="https://goldmann.pl/blog/2014/07/08/jboss-projects-as-docker-images/" class="bare">https://goldmann.pl/blog/2014/07/08/jboss-projects-as-docker-images/</a></p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="wildfly-executando-no-docker"><a class="anchor" href="#wildfly-executando-no-docker"></a>WildFly executando no Docker</h3>
+<div class="paragraph">
+<p>Executemos o WildFly em modo standalone:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker run -it jboss/wildfly</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Dessa forma, para acessar o JBoss na porta 8080 (dentro da VM), é necessário descobrir o IP do contêiner. Abra um novo console na VM e execute os seguintes comandos:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">CID=$(sudo docker ps -a | grep -i up| awk '{ print $1; }')
+echo CID
+IP=$(sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' $CID)
+echo $IP</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Agora poderíamos abrir um browser dentro da VM (não temos interface gráfica) e acessar a URL <a href="http://$IP:8080" class="bare">http://$IP:8080</a>. Mas, esse é o nosso problema: esse IP só é acessível de dentro da VM! Mesmo assim, vamos testar utilizando um browser de linha de comando:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">lynx http://$IP:8080</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Para acessarmos o WildFly a partir do HOST a solução é pedir que o docker crie mais dois túneis de acesso (para as portas 8080 e 9990) entre a VM e o contêiner. Para fazer isso, vamos dar um <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>C</kbd></span> na execução corrente do WildFly e, em seguida, executar:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">sudo docker run -it -p 8080:8080 -p 9990:9990 jboss/wildfly</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Podemos agora acessar, no HOST, a URL <a href="http://vm-fedora:8080" class="bare">http://vm-fedora:8080</a>. Para acessar a interface administrativa, ainda precisamos da adição de um usuário administrativo. Então, modificaremos nosso contêiner adionando esse usuário. Pare novamente o contêiner em execução e comande:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">cat &gt; Dockerfile &lt;&lt;EOF
+FROM jboss/wildfly
+RUN /opt/wildfly/bin/add-user.sh admin Admin#70365 --silent
+EOF
+sudo docker build -t wildfly-management  .
+sudo docker run -it --rm -p 8080:8080 -p 9990:9990 wildfly-management</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Dá para explorar, ainda, muito mais coisas&#8230;&#8203; Para isso, veja estas referências:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Apresentação do Marek Goldmann no VJBUG (Setembro/2014):</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Vídeo: <a href="https://www.youtube.com/watch?v=4uQ6gR_xZhE" class="bare">https://www.youtube.com/watch?v=4uQ6gR_xZhE</a></p>
+</li>
+<li>
+<p>Exemplos: <a href="https://github.com/goldmann/goldmann.pl/tree/master/.presentations/2014-vjbug-docker/demos" class="bare">https://github.com/goldmann/goldmann.pl/tree/master/.presentations/2014-vjbug-docker/demos</a></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><a href="https://goldmann.pl/blog/2014/03/06/creating-a-minimal-wildfly-docker-image/" class="bare">https://goldmann.pl/blog/2014/03/06/creating-a-minimal-wildfly-docker-image/</a></p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="rhq-executando-no-docker"><a class="anchor" href="#rhq-executando-no-docker"></a>RHQ executando no Docker</h3>
+<div class="paragraph">
+<p>O <a href="http://rhq.jboss.org/">RHQ</a> é um produto de monitoração que é a base para o <a href="http://www.redhat.com/en/technologies/jboss-middleware/operations-network">JON</a>. Para instalá-lo via Docker, executemos:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-bash" data-lang="bash">git clone https://github.com/rhq-project/docker.git rhq-docker
+cd !$/dockerfile
+sudo ./build.sh
+sudo ./run.sh</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Explore mais detalhes nos seguintes links:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://github.com/rhq-project/docker" class="bare">https://github.com/rhq-project/docker</a></p>
+</li>
+<li>
+<p><a href="https://www.youtube.com/watch?v=hx43fQh-RVQ&amp;feature=youtu.be" class="bare">https://www.youtube.com/watch?v=hx43fQh-RVQ&amp;feature=youtu.be</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div></div><div class="footer"><div class="container"><p>Published site: <a href="http://paulojeronimo.github.io/JUDCon-2014-Brazil">http://paulojeronimo.github.io/JUDCon-2014-Brazil</a><br>Source code: <a href="http://github.com/paulojeronimo/JUDCon-2014-Brazil">http://github.com/paulojeronimo/JUDCon-2014-Brazil</a></p></div></div><script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script><script src="http://paulojeronimo.github.io/JUDCon-2014-Brazil/js/bootstrap.min.js"></script></body></html>
