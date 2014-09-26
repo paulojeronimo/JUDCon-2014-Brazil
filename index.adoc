@@ -1,0 +1,22 @@
+= Hello!
+{author}
+:page-layout: base
+:uri-judcon-2014: http://www.jboss.org/events/JUDCon/2014/
+:uri-judcon-2014-brasil: {uri-judcon-2014}/brazil
+:uri-asciidoctor: http://asciidoctor.org
+:uri-awestruct: http://awestruct.org
+
+== What is this?
+This is a very basic and simple static website that I made to present link:./tutorial.html[my tutorial] (brazilian portuguese) on {uri-judcon-2014-brasil}[JUDCon 2014 Brazil].
+
+I developed this site using some awesome and open source tools made by JBoss guys:
+
+. {uri-awestruct}[Awestruct]. A framework for creating static HTML sites, inspired by the http://github.com/mojombo/jekyll[Jekyll]. By using this tool, I'm now http://paulojeronimo.net[creating my new website] and others, like this.
+. {uri-asciidoctor}[Asciidoctor]. A fast text processor and publishing toolchain for converting AsciiDoc to HTML5, DocBook and more. Particulary, I'm very grateful to http://github.com/mojavelinux[Dan Allen] for his work on this tool because I learned many things as a result of its use. I'm using Asciidoctor to write http://github.com/paulojeronimo/livro-jboss[my book about JBoss EAP] (Brazilian Portuguese).
+
+They were also integrated with some other cool tools/ technologies:
+
+. http://getbootstrap.com/[Bootstrap]
+. http://slim-lang.com/[Slim]
+
+If you are interested in know how to produce your static website using this tools, check out a http://github.com/paulojeronimo/join-community-2014[tutorial that I presented this year] on http://joincommunity.com.br/[JoinCommunity 2014] and, also, read link:./about.html[this page].

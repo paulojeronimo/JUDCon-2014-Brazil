@@ -1,0 +1,11 @@
+= Acknowledgments
+{author}
+:page-layout: base
+
+== Acknowledgments
+To build my presentation I had to study the work from several others. Maybe some of them even helped me to be present at this event by to know my past work. So, I am grateful to all these people and therefore I believe it fair to quote them here.
+
+* https://github.com/arun-gupta[Arun Gupta]
+* https://github.com/mojavelinux[Dan Allen]
+* https://github.com/goldmann[Marek Goldman]
+* https://github.com/pilhuhn[Heiko W. Rupp]

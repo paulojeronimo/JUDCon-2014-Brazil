@@ -1,0 +1,30 @@
+name: PJ @ JUDCon 2014 Brazil
+author: Paulo Jerônimo
+author_url: https://github.com/paulojeronimo
+project: JUDCon-2014-Brazil
+base_url: ''
+asciidoctor:
+  :toc:
+  :safe: safe
+  :attributes:
+    sitename: PJ @ JUDCon 2014 Brazil
+    base_url: ''
+    ctx_path: ''
+    idprefix: ''
+    idseparator: '-'
+    sectanchors: ''
+    icons: font
+profiles:
+  development:
+    deploy: nil
+  production:
+    base_url: http://paulojeronimo.github.io/JUDCon-2014-Brazil
+    ctx_path: /JUDCon-2014-Brazil
+    asciidoctor:
+      :attributes:
+        base_url: http://paulojeronimo.github.io/JUDCon-2014-Brazil
+        ctx_path: /JUDCon-2014-Brazil
+        imagesdir: http://paulojeronimo.github.io/JUDCon-2014-Brazil/images
+    deploy:
+      host: github_pages
+      branch: gh-pages

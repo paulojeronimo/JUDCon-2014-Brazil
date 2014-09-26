@@ -1,0 +1,277 @@
+= Tutorial: Configurando e executando WildFly e RHQ no Docker/Fedora
+{author}
+:page-layout: base
+:toc: right
+:experimental:
+
+== Resumo
+Nesse tutorial eu explico fundamentos e conceitos para a execução do https://www.docker.com/[Docker] no https://fedoraproject.org/[Fedora 20]. Esses conceitos também se aplicam ao https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/[RHEL 7]. Então, eu exploro um caso de uso: a instalação e a configuração do http://wildfly.org/[WildFly] e do http://wildfly.org/[RHQ] nesse ambiente. Este tutorial foi projetado inicialmente para ser apresentado em http://www.jboss.org/events/JUDCon/2014/brazil/speakers.html#wildfly[minha palestra no JUDCon Brazil 2014].
+
+== Background teórico sobre o Docker
+
+=== O que é o Docker?
+* https://www.docker.com/whatisdocker/
+* https://www.docker.com/tryit/
+* Plataforma aberta para desenvolvedores e sysadmins
+** Para construir, implantar e executar aplicações distribuídas
+
+==== Porque os desenvolvedores gostam dele?
+* Desenvolvedores utilizam o docker para criar aplicações que rodam de maneira padrão em qualquer lugar:
+** Laptops com OS X, Windows ou Linux
+** Servidores na nuvem rodando Ubuntu, Red Hat, ...
+
+==== Porque os sysadmins gostam dele?
+* Sysadmins utilizam o docker para prover ambientes para times de:
+** Desenvolvimento, QA, produção
+
+==== Arquitetura
+* O docker possui uma arquitetura cliente/servidor
+* https://docs.docker.com/introduction/understanding-docker/#the-docker-client[Docker client] conversa com https://docs.docker.com/introduction/understanding-docker/#the-docker-daemon[Docker daemon]
+** Client pode se conectar a um daemon remoto ou local (mesmo sistema)
+** Client e daemon se comunicam via sockets ou através de uma API RESTful
+** Client aceita comandos do usuário e faz a comunicação com o daemon
+* Docker daemon executa na máquina Host
+** O usuário nunca interage diretamente com o daemon mas sim com o client
+
+image::https://docs.docker.com/article-img/architecture.svg[Architecture]
+
+==== Componentes internos
+* https://docs.docker.com/introduction/understanding-docker/#inside-docker[Docker images]
+** São templates (somente leitura)
+*** Podem conter um sistema operacional e aplicações instaladas
+** São utilizadas para criar contêineres
+* Docker Registries
+** Armazenam docker images
+*** Provêem upload e download de docker images
+** São privados ou públicos
+*** http://hub.docker.com/[Docker Hub] é o "armazém" público
+* Docker contêineres
+** São similares a diretórios
+** Armazenam tudo o que é necessário para uma aplicação ser executada
+** São executados, iniciados, parados, movidos e removidos
+** Cada contêiner é uma plataforma segura e isolada de aplicações
+
+
+==== Como o Docker funciona?
+* Você faz o build de images que armazenam suas aplicações
+* Você cria contêineres a partir desses images para executar suas aplicações
+* Você compartilha suas images via Docker Hub ou no seu próprio registry
+
+== Instalando o Docker no Fedora
+* http://docs.docker.com/installation/fedora/
+* https://goldmann.pl/blog/2013/09/25/docker-and-fedora/
+* Docker pode ser executado numa máquina real ou numa VM (não importa)
+** O fato: A arquitetura precisa ser 64 bits e executar um kernel Linux
+
+=== Baixando e executando uma VM Fedora 20 no VirtualBox
+* Instale o http://virtualbox.org[VirtualBox]
+* Instale o http://7zip.org[7zip]
+* Baixe http://gdriv.es/vm-fedora[minha vm-fedora]
+** Se desejar, https://github.com/paulojeronimo/vms/[leia como eu faço sua criação]
+* Para fazer o seu download, extraí-la e colocá-la em funcionamento, execute:
+[source,bash]
+----
+cd ~/VirtualBox\ VMs/
+bash <(curl -L http://j.mp/vm-fedora-download)
+7za x vm-fedora.7z.001
+VBoxManage registervm "$PWD/vm-fedora/vm-fedora.vbox"
+VBoxManage startvm vm-fedora
+----
+* _Também poderíamos utilizar o https://www.vagrantup.com/[Vagrant] (leia http://paulojeronimo.github.io/tutorial-vagrant/[o tutorial que escrevi a seu respeito]) ou uma máquina não virtualizada com a instalação do Fedora 20. Mas, neste tutorial, não estou utilizando-o._
+
+=== Configurando a VM para acesso a partir de uma console do HOST
+Apenas como exemplo (não execute), uma alternativa para acessar a console da VM no HOST seria criar um túnel reverso fazendo um ssh da console da VM para o HOST:
+[source,bash]
+----
+ssh -f -N -R 2222:localhost:22 pj@base
+----
+Dessa forma, a partir da console do HOST poderíamos acessar o HOST com os seguintes comandos:
+----
+ssh-copy-id -p 2222 aluno@localhost
+ssh -p 2222 aluno@localhost
+----
+O problema de fazer isso é que, mais a frente nesse tutorial, testaremos o acesso ao WildFly através de um IP válido para o HOST ao invés de fazermos túeis para as portas 8080 e 9990. Então, precisaremos parar a VM e fazer algumas configurações:
+[source,bash]
+----
+VBoxManage acpipowerbutton vm-fedora
+VBoxManage hostonlyif create
+VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.0.253 --netmask 255.255.255.0
+VBoxManage modifyvm vm-fedora --nic2 hostonly --hostonlyadapter2 vboxnet0
+VBoxManage startvm vm-fedora
+f=/etc/hosts; sudo sed -i '' '/vm-fedora/d' $f
+echo -e "192.168.0.254\tvm-fedora" | sudo tee -a $f
+----
+Logue-se como aluno (senha: @lun0123) na console da VM e execute:
+[source,bash]
+----
+cat <<'EOF' | sudo tee /etc/sysconfig/network-scripts/ifcfg-static-p7p1
+DEVICE=p7p1
+BOOTPROTO=none
+ONBOOT=yes
+IPADDR=192.168.0.254
+PREFIX=24
+GATEWAY=192.168.0.254
+EOF
+sudo nmcli con reload
+sudo nmcli con up "System static-p7p1"
+ping 192.168.0.253
+sudo yum -y install vim tree lynx
+----
+Volte ao console do HOST e execute:
+[source,bash]
+----
+ping vm-fedora
+ssh-copy-id aluno@vm-fedora
+ssh aluno@vm-fedora
+----
+
+=== Instalando o Docker
+Na VM, execute:
+[source,bash]
+----
+sudo yum -y install docker-io
+sudo systemctl start docker
+sudo systemctl enable docker
+----
+
+=== Procurando contêineres no Docker Hub
+Na VM, execute:
+[source,bash]
+----
+sudo docker search fedora | less
+sudo docker search wildfly | less
+sudo docker search rhq | less
+----
+
+=== Baixando e executando a imagem de um contêiner
+Na VM, execute:
+[source,bash]
+----
+sudo docker run -i -t fedora /bin/bash
+----
+Parâmetros:
+. `run` - executa um contêiner
+. `-i` - mantem o stdin aberto, mesmo que não haja nada anexado
+. `-t` - aloca um pseudo terminal, dessa forma podermos interagir diretamente com o contêiner
+. `fedora` - ID da imagem, pode ser uma tag ou um hash (id)
+. `/bin/bash` - o comando que será executado após o contêiner ser iniciado
+Detalhes:
+. Se o contêiner não estiver no cache local ele será baixado
+.. Se quiséssesmos apenas baixar essa imagem, sem executar nada, poderíamos simplesmente rodar `sudo docker pull fedora`
+. O prompt de comando apresentado será da forma root@<id>
+
+=== Gerenciamento básico do contêiner
+Pare o contêiner pressionando kbd:[Ctrl+D]
+* O contêiner será parado mas, poderá ser reiniciado ou removido
+Para remover o contêiner, você precisará saber seu id
+* O comando `sudo docker ps` mostra o id dos contêineres em execução
+Para ver todos os contêineres, inclusive os parados, execute `sudo docker ps -a`
+Observemos a seguir a saída de meu último comando:
+[source]
+----
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                      PORTS               NAMES
+d30ae9376851        fedora:latest       "/bin/bash"         27 minutes ago      Exited (0) 24 minutes ago                       drunk_curie
+----
+Removamos o contêiner, como no exemplo que eu apresento abaixo (substitua o id pelo que é apresentado na tua saída):
+[source,bash]
+----
+sudo docker rm d30ae9376851
+----
+Reexecutemos o contêiner:
+[source,bash]
+----
+sudo docker run -i -t fedora /bin/bash
+----
+Listemos as images instaladas:
+[source,bash]
+----
+sudo docker images
+----
+Vejamos, buscando e instalando, o espaço ocupado por uma image. Em seguida façamos sua remoção.
+[source,bash]
+----
+sudo docker search centos | grep tomcat | grep jdk
+sudo docker pull toprightgroup/narwhal-centos7-jdk7-tomcat8
+sudo docker images
+----
+Observemos a saída do último comando
+[source]
+----
+REPOSITORY                                   TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+fedora                                       rawhide             fdc0b700f96b        12 hours ago        379.5 MB
+fedora                                       21                  a0ebecffd812        12 hours ago        375.8 MB
+fedora                                       20                  5cc8a068a737        12 hours ago        374 MB
+fedora                                       heisenbug           5cc8a068a737        12 hours ago        374 MB
+fedora                                       latest              5cc8a068a737        12 hours ago        374 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   master              3c7716848106        4 weeks ago         621.5 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   b1                  7441456d75c2        6 weeks ago         618.2 MB
+----
+Para remover a image toprightgroup/narwhal-centos7-jdk7-tomcat8 (que não será utilizada e está ocupando mais de 1 GB no disco) e depois verificar, basta fazermos:
+[source,bash]
+----
+sudo docker rmi 3c7
+sudo docker rmi 744
+sudo docker images
+----
+
+== Docker em projetos JBoss
+O JBoss possui vários projetos utilizando o Docker. Leia mais sobre isso nos seguintes links:
+
+* http://www.jboss.org/docker/
+* https://goldmann.pl/blog/2014/07/08/jboss-projects-as-docker-images/
+
+=== WildFly executando no Docker
+Executemos o WildFly em modo standalone:
+[source,bash]
+----
+sudo docker run -it jboss/wildfly
+----
+Dessa forma, para acessar o JBoss na porta 8080 (dentro da VM), é necessário descobrir o IP do contêiner. Abra um novo console na VM e execute os seguintes comandos:
+[source,bash]
+-----
+CID=$(sudo docker ps -a | grep -i up| awk '{ print $1; }')
+echo CID
+IP=$(sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' $CID)
+echo $IP
+-----
+Agora poderíamos abrir um browser dentro da VM (não temos interface gráfica) e acessar a URL http://$IP:8080. Mas, esse é o nosso problema: esse IP só é acessível de dentro da VM! Mesmo assim, vamos testar utilizando um browser de linha de comando:
+[source,bash]
+----
+lynx http://$IP:8080
+----
+Para acessarmos o WildFly a partir do HOST a solução é pedir que o docker crie mais dois túneis de acesso (para as portas 8080 e 9990) entre a VM e o contêiner. Para fazer isso, vamos dar um kbd:[Ctrl+C] na execução corrente do WildFly e, em seguida, executar:
+[source,bash]
+----
+sudo docker run -it -p 8080:8080 -p 9990:9990 jboss/wildfly
+----
+Podemos agora acessar, no HOST, a URL http://vm-fedora:8080. Para acessar a interface administrativa, ainda precisamos da adição de um usuário administrativo. Então, modificaremos nosso contêiner adionando esse usuário. Pare novamente o contêiner em execução e comande:
+[source,bash]
+----
+cat > Dockerfile <<EOF
+FROM jboss/wildfly
+RUN /opt/wildfly/bin/add-user.sh admin Admin#70365 --silent
+EOF
+sudo docker build -t wildfly-management  .
+sudo docker run -it --rm -p 8080:8080 -p 9990:9990 wildfly-management
+----
+Dá para explorar, ainda, muito mais coisas... Para isso, veja estas referências:
+
+* Apresentação do Marek Goldmann no VJBUG (Setembro/2014):
+** Vídeo: https://www.youtube.com/watch?v=4uQ6gR_xZhE
+** Exemplos: https://github.com/goldmann/goldmann.pl/tree/master/.presentations/2014-vjbug-docker/demos
+* https://goldmann.pl/blog/2014/03/06/creating-a-minimal-wildfly-docker-image/
+
+=== RHQ executando no Docker
+O http://rhq.jboss.org/[RHQ] é um produto de monitoração que é a base para o http://www.redhat.com/en/technologies/jboss-middleware/operations-network[JON]. Para instalá-lo via Docker, executemos:
+[source,bash]
+----
+git clone https://github.com/rhq-project/docker.git rhq-docker
+cd !$/dockerfile
+sudo ./build.sh
+sudo ./run.sh
+----
+
+Explore mais detalhes nos seguintes links:
+
+* https://github.com/rhq-project/docker
+* https://www.youtube.com/watch?v=hx43fQh-RVQ&feature=youtu.be
