@@ -5,7 +5,7 @@
 :experimental:
 
 == Resumo
-Nesse tutorial eu explico fundamentos e conceitos para a execução do https://www.docker.com/[Docker] no https://fedoraproject.org/[Fedora 20]. Esses conceitos também se aplicam ao https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/[RHEL 7]. Então, eu exploro um caso de uso: a instalação e a configuração do http://wildfly.org/[WildFly] e do http://wildfly.org/[RHQ] nesse ambiente. Este tutorial foi projetado inicialmente para ser apresentado em http://www.jboss.org/events/JUDCon/2014/brazil/speakers.html#wildfly[minha palestra no JUDCon Brazil 2014].
+Nesse tutorial eu explico fundamentos e conceitos para a execução do https://www.docker.com/[Docker] no https://fedoraproject.org/[Fedora 20]. Esses conceitos também se aplicam ao https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/[RHEL 7]. Então, eu exploro um caso de uso: a instalação e a configuração do http://wildfly.org/[WildFly] e do http://wildfly.org/[RHQ] nesse ambiente. Este tutorial foi projetado inicialmente para ser apresentado em http://www.jboss.org/events/JUDCon/2014/brazil/speakers.html#wildfly[minha palestra no JUDCon 2014 Brazil].
 
 == Background teórico sobre o Docker
 
@@ -17,12 +17,12 @@ Nesse tutorial eu explico fundamentos e conceitos para a execução do https://w
 
 ==== Porque os desenvolvedores gostam dele?
 * Desenvolvedores utilizam o docker para criar aplicações que rodam de maneira padrão em qualquer lugar:
-** Laptops com OS X, Windows ou Linux
+** Laptops com OS X, Linux e, até mesmo (pasmem) Windows
 ** Servidores na nuvem rodando Ubuntu, Red Hat, ...
 
 ==== Porque os sysadmins gostam dele?
 * Sysadmins utilizam o docker para prover ambientes para times de:
-** Desenvolvimento, QA, produção
+** Desenvolvimento, Quality assurance (QA), produção
 
 ==== Arquitetura
 * O docker possui uma arquitetura cliente/servidor
@@ -44,7 +44,7 @@ image::https://docs.docker.com/article-img/architecture.svg[Architecture]
 ** Armazenam docker images
 *** Provêem upload e download de docker images
 ** São privados ou públicos
-*** http://hub.docker.com/[Docker Hub] é o "armazém" público
+*** http://hub.docker.com/[Docker Hub] é o registry público
 * Docker contêineres
 ** São similares a diretórios
 ** Armazenam tudo o que é necessário para uma aplicação ser executada
@@ -61,14 +61,14 @@ image::https://docs.docker.com/article-img/architecture.svg[Architecture]
 * http://docs.docker.com/installation/fedora/
 * https://goldmann.pl/blog/2013/09/25/docker-and-fedora/
 * Docker pode ser executado numa máquina real ou numa VM (não importa)
-** O fato: A arquitetura precisa ser 64 bits e executar um kernel Linux
+** O fato: a arquitetura precisa ser 64 bits e executar um kernel Linux
 
 === Baixando e executando uma VM Fedora 20 no VirtualBox
-* Instale o http://virtualbox.org[VirtualBox]
-* Instale o http://7zip.org[7zip]
-* Baixe http://gdriv.es/vm-fedora[minha vm-fedora]
-** Se desejar, https://github.com/paulojeronimo/vms/[leia como eu faço sua criação]
-* Para fazer o seu download, extraí-la e colocá-la em funcionamento, execute:
+* Instale o http://virtualbox.org[VirtualBox];
+* Instale o http://7zip.org[7zip];
+* Baixe e coloque minha http://gdriv.es/vm-fedora[minha vm-fedora] em funcionamento no teu VirtualBox:
+** Se desejar, https://github.com/paulojeronimo/vms/[leia como eu faço sua criação];
+** Para fazer o seu download, extraí-la e executá-la, siga os seguintes passos:
 [source,bash]
 ----
 cd ~/VirtualBox\ VMs/
@@ -77,31 +77,49 @@ bash <(curl -L http://j.mp/vm-fedora-download)
 VBoxManage registervm "$PWD/vm-fedora/vm-fedora.vbox"
 VBoxManage startvm vm-fedora
 ----
-* _Também poderíamos utilizar o https://www.vagrantup.com/[Vagrant] (leia http://paulojeronimo.github.io/tutorial-vagrant/[o tutorial que escrevi a seu respeito]) ou uma máquina não virtualizada com a instalação do Fedora 20. Mas, neste tutorial, não estou utilizando-o._
+_Observação: poderíamos utilizar o https://www.vagrantup.com/[Vagrant] (leia http://paulojeronimo.github.io/tutorial-vagrant/[o tutorial que escrevi a seu respeito]) mas, neste tutorial, não estou utilizando-o._
 
 === Configurando a VM para acesso a partir de uma console do HOST
-Apenas como exemplo (não execute), uma alternativa para acessar a console da VM no HOST seria criar um túnel reverso fazendo um ssh da console da VM para o HOST:
+A VM que baixamos só possui uma interface de rede (configura com o IP 10.0.2.5). A partir dela conseguimos navegar na Internet através de um NAT com a máquina HOST (nossa máquina, que está executando o VirtualBox). Tecnicamente, não há como fazer um ping ou mesmo acesar o IP da VM através da máquina HOST, nesse caso. Mas, há uma alternativa para isso que consiste na criação de um túnel reverso fazendo um ssh da console da VM para o HOST. Para testarmos essa alternativa, loguemos no console da VM (usuário `aluno`, senha `@lun0123`) e executemos:
 [source,bash]
 ----
 ssh -f -N -R 2222:localhost:22 pj@base
 ----
-Dessa forma, a partir da console do HOST poderíamos acessar o HOST com os seguintes comandos:
+_Obviamente, você deverá substituir o meu usuário (`pj`) pelo o usuário que você tem em tua máquina. Detalhe: o host `base` tem o IP 10.0.2.2, que é o IP NAT de teu HOST_.
+
+Dessa forma, a partir de um shell aberto no HOST, poderíamos acessar a VM com os seguintes comandos:
 ----
 ssh-copy-id -p 2222 aluno@localhost
 ssh -p 2222 aluno@localhost
 ----
-O problema de fazer isso é que, mais a frente nesse tutorial, testaremos o acesso ao WildFly através de um IP válido para o HOST ao invés de fazermos túeis para as portas 8080 e 9990. Então, precisaremos parar a VM e fazer algumas configurações:
+O problema de fazer isso é que, mais a frente nesse tutorial, testaremos o acesso ao WildFly através de um IP válido para o HOST ao invés de fazermos túneis para as portas utilizadas pelo WildFly. Precisaremos parar a VM e fazer algumas configurações. Encerrando o ssh com a VM (kbd:[Ctrl+D]) e voltando para o console do HOST, executemos:
 [source,bash]
 ----
-VBoxManage acpipowerbutton vm-fedora
+VBoxManage controlvm vm-fedora acpipowerbutton
 VBoxManage hostonlyif create
 VBoxManage hostonlyif ipconfig vboxnet0 --ip 192.168.0.253 --netmask 255.255.255.0
 VBoxManage modifyvm vm-fedora --nic2 hostonly --hostonlyadapter2 vboxnet0
 VBoxManage startvm vm-fedora
-f=/etc/hosts; sudo sed -i '' '/vm-fedora/d' $f
+f=/etc/hosts; grep -v vm-fedora $f | sudo tee $f
 echo -e "192.168.0.254\tvm-fedora" | sudo tee -a $f
+cat $f
 ----
-Logue-se como aluno (senha: @lun0123) na console da VM e execute:
+Façamos mais uma vez o logon na console da VM como usuário `aluno` (senha `@lun0123`). Executemos novamente o comando de criação do túnel reverso (_sugestão: utilize um kbd:[Ctrl+R] para encontrá-lo_):
+[source,bash]
+----
+ssh -f -N -R 2222:localhost:22 pj@base
+----
+Observemos também que, agora, há uma nova interface de rede nessa máquina (`p7p1`). Vejamos isso através da execução do comando a seguir:
+[source,bash]
+----
+ip a s
+----
+Precisamos configurar um IP estático para essa nova interface. Será esse IP que utilizaremos para fazer o acesso do HOST a VM. De volta ao console da máquina HOST, executemos:
+[source,bash]
+----
+ssh -p 2222 aluno@localhost
+----
+Agora temos acesso remoto para a console da VM utilizando nosso HOST. Podemos simplesmente copiar e colar os comandos a seguir nessa console (_detalhe: copia/colar não seria possível de fazer, diretamente, do HOST para a VM pois o VirtualBox não oferece esta facilidade quando estamos trabalhando no modo texto, o que é o caso_):
 [source,bash]
 ----
 cat <<'EOF' | sudo tee /etc/sysconfig/network-scripts/ifcfg-static-p7p1
@@ -114,10 +132,17 @@ GATEWAY=192.168.0.254
 EOF
 sudo nmcli con reload
 sudo nmcli con up "System static-p7p1"
+----
+Os comandos acima servem para configurar o IP estático 192.168.0.254 para a interface `p7p1`. Para verificar se tudo deu certo, façamos um ping para o outro IP do (HOST):
+[source,bash]
+----
 ping 192.168.0.253
+----
+Por fim, instalemos alguns utilitários que serão utilizados no decorrer desse tutorial:
+----
 sudo yum -y install vim tree lynx
 ----
-Volte ao console do HOST e execute:
+Voltemos ao console do HOST digitando um kbd:[Ctrl+D] e, em seguida, executemos:
 [source,bash]
 ----
 ping vm-fedora
@@ -125,8 +150,10 @@ ssh-copy-id aluno@vm-fedora
 ssh aluno@vm-fedora
 ----
 
+De agora em diante, executaremos todos os procedimentos que apresentarei no console da VM (a menos que eu dê alguma outra instrução).
+
 === Instalando o Docker
-Na VM, execute:
+Procedamos a instalação do Docker com os seguintes comandos:
 [source,bash]
 ----
 sudo yum -y install docker-io
@@ -135,7 +162,7 @@ sudo systemctl enable docker
 ----
 
 === Procurando contêineres no Docker Hub
-Na VM, execute:
+Busquemos contêineres executando as seguintes instruções:
 [source,bash]
 ----
 sudo docker search fedora | less
@@ -144,29 +171,32 @@ sudo docker search rhq | less
 ----
 
 === Baixando e executando a imagem de um contêiner
-Na VM, execute:
+Agora, baixemos a imagem básica de um Fedora:
 [source,bash]
 ----
 sudo docker run -i -t fedora /bin/bash
 ----
-Parâmetros:
+* Parâmetros:
 . `run` - executa um contêiner
 . `-i` - mantem o stdin aberto, mesmo que não haja nada anexado
 . `-t` - aloca um pseudo terminal, dessa forma podermos interagir diretamente com o contêiner
 . `fedora` - ID da imagem, pode ser uma tag ou um hash (id)
 . `/bin/bash` - o comando que será executado após o contêiner ser iniciado
-Detalhes:
+* Detalhes:
 . Se o contêiner não estiver no cache local ele será baixado
 .. Se quiséssesmos apenas baixar essa imagem, sem executar nada, poderíamos simplesmente rodar `sudo docker pull fedora`
 . O prompt de comando apresentado será da forma root@<id>
 
 === Gerenciamento básico do contêiner
-Pare o contêiner pressionando kbd:[Ctrl+D]
-* O contêiner será parado mas, poderá ser reiniciado ou removido
-Para remover o contêiner, você precisará saber seu id
-* O comando `sudo docker ps` mostra o id dos contêineres em execução
-Para ver todos os contêineres, inclusive os parados, execute `sudo docker ps -a`
-Observemos a seguir a saída de meu último comando:
+Paremos o contêiner pressionando kbd:[Ctrl+D]. Ele será parado mas poderá ser reiniciado ou removido na hora que quisermos.
+
+Para removermos o contêiner, precisaremos saber seu id e para isso, executaremos um `sudo docker ps`. A saída desse comando, entretanto, só nos mostra os ids dos contêineres em execução. Para listarmos os ids de todos os contêineres, até mesmo os que não estão em execução, executaremos esse mesmo comando informando o parâmetro `-a`:
+[source,bash]
+----
+sudo docker ps -a
+----
+
+Nossa saída deverá ser similar a esta:
 [source]
 ----
 CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                      PORTS               NAMES
@@ -177,42 +207,46 @@ Removamos o contêiner, como no exemplo que eu apresento abaixo (substitua o id 
 ----
 sudo docker rm d30ae9376851
 ----
-Reexecutemos o contêiner:
+Executemos o contêiner novamente:
 [source,bash]
 ----
 sudo docker run -i -t fedora /bin/bash
 ----
-Listemos as images instaladas:
+Paremos o contêiner (kbd:[Ctrl+D]) e listemos as images instaladas:
 [source,bash]
 ----
 sudo docker images
 ----
-Vejamos, buscando e instalando, o espaço ocupado por uma image. Em seguida façamos sua remoção.
+Vejamos, buscando e instalando, o espaço ocupado por uma image. Em seguida façamos sua remoção. Por exemplo, façamos a busca e a instalação de uma imagem do centos que tenha o tomcat instalado:
 [source,bash]
 ----
-sudo docker search centos | grep tomcat | grep jdk
+sudo docker search centos | grep tomcat
+----
+A listagem apresentada na saída do comando acima nos apresenta a imagem que podemos instalar com o comando a seguir:
+[source,bash]
+----
 sudo docker pull toprightgroup/narwhal-centos7-jdk7-tomcat8
+----
+Depois de instalarmos a imagem, como eu disse, podemos ver seus detalhes executando o comando a seguir:
+[source,bash]
+----
 sudo docker images
 ----
-Observemos a saída do último comando
+Observemos que a saída desse comando agora nos apresenta a seguinte listagem:
 [source]
 ----
 REPOSITORY                                   TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-fedora                                       rawhide             fdc0b700f96b        12 hours ago        379.5 MB
-fedora                                       21                  a0ebecffd812        12 hours ago        375.8 MB
-fedora                                       20                  5cc8a068a737        12 hours ago        374 MB
-fedora                                       heisenbug           5cc8a068a737        12 hours ago        374 MB
-fedora                                       latest              5cc8a068a737        12 hours ago        374 MB
-toprightgroup/narwhal-centos7-jdk7-tomcat8   master              3c7716848106        4 weeks ago         621.5 MB
-toprightgroup/narwhal-centos7-jdk7-tomcat8   b1                  7441456d75c2        6 weeks ago         618.2 MB
+fedora                                       latest              7d3f07f8de5f        About an hour ago   374.1 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   master              3c7716848106        5 weeks ago         621.5 MB
+toprightgroup/narwhal-centos7-jdk7-tomcat8   b1                  7441456d75c2        7 weeks ago         618.2 MB
 ----
-Para remover a image toprightgroup/narwhal-centos7-jdk7-tomcat8 (que não será utilizada e está ocupando mais de 1 GB no disco) e depois verificar, basta fazermos:
+Notamos que a image `toprightgroup/narwhal-centos7-jdk7-tomcat8` (que não será utilizada) está ocupando mais de 1 GB no disco. Para removê-la, executemos:
 [source,bash]
 ----
 sudo docker rmi 3c7
 sudo docker rmi 744
-sudo docker images
 ----
+Em seguida podemos verificar se ela foi realmente removida executando o `sudo docker images`.
 
 == Docker em projetos JBoss
 O JBoss possui vários projetos utilizando o Docker. Leia mais sobre isso nos seguintes links:
@@ -220,43 +254,111 @@ O JBoss possui vários projetos utilizando o Docker. Leia mais sobre isso nos se
 * http://www.jboss.org/docker/
 * https://goldmann.pl/blog/2014/07/08/jboss-projects-as-docker-images/
 
-=== WildFly executando no Docker
-Executemos o WildFly em modo standalone:
+=== WildFly no Docker
+
+==== Executando em modo standalone
 [source,bash]
 ----
 sudo docker run -it jboss/wildfly
 ----
-Dessa forma, para acessar o JBoss na porta 8080 (dentro da VM), é necessário descobrir o IP do contêiner. Abra um novo console na VM e execute os seguintes comandos:
+Dessa forma, para acessar o JBoss na porta 8080 (dentro da VM), é necessário descobrir o IP do contêiner. Abramos um novo console na VM e executemos os seguintes comandos:
 [source,bash]
 -----
-CID=$(sudo docker ps -a | grep -i up| awk '{ print $1; }')
+CID=$(sudo docker ps -a | grep -i up | awk '{print $1}')
 echo CID
 IP=$(sudo docker inspect --format '{{ .NetworkSettings.IPAddress }}' $CID)
 echo $IP
 -----
-Agora poderíamos abrir um browser dentro da VM (não temos interface gráfica) e acessar a URL http://$IP:8080. Mas, esse é o nosso problema: esse IP só é acessível de dentro da VM! Mesmo assim, vamos testar utilizando um browser de linha de comando:
+Agora poderíamos abrir um browser dentro da VM (não temos interface gráfica) e acessar a URL http://$IP:8080. Mas, esse é o nosso problema: esse IP só é acessível de dentro da VM! Mesmo assim, testemos utilizando um browser de linha de comando:
 [source,bash]
 ----
 lynx http://$IP:8080
 ----
-Para acessarmos o WildFly a partir do HOST a solução é pedir que o docker crie mais dois túneis de acesso (para as portas 8080 e 9990) entre a VM e o contêiner. Para fazer isso, vamos dar um kbd:[Ctrl+C] na execução corrente do WildFly e, em seguida, executar:
+Para acessarmos o WildFly a partir do HOST a solução é pedir que o docker crie mais dois túneis de acesso (para as portas 8080 e 9990) entre a VM e o contêiner. Para fazer isso, damos um kbd:[Ctrl+C] na execução corrente do WildFly e, em seguida, executemos:
 [source,bash]
 ----
 sudo docker run -it -p 8080:8080 -p 9990:9990 jboss/wildfly
 ----
-Podemos agora acessar, no HOST, a URL http://vm-fedora:8080. Para acessar a interface administrativa, ainda precisamos da adição de um usuário administrativo. Então, modificaremos nosso contêiner adionando esse usuário. Pare novamente o contêiner em execução e comande:
+Podemos agora acessar, no HOST, a URL http://vm-fedora:8080. Para acessar a interface administrativa, ainda precisamos da adição de um usuário administrativo. Modificaremos nosso contêiner adionando esse usuário. Paremos novamente o contêiner em execução (kbd:[Ctrl+C]) e executemos:
 [source,bash]
 ----
+mkdir -p ~/wildfly-management
+cd !$
 cat > Dockerfile <<EOF
 FROM jboss/wildfly
 RUN /opt/wildfly/bin/add-user.sh admin Admin#70365 --silent
 EOF
-sudo docker build -t wildfly-management  .
+sudo docker build -t wildfly-management .
+----
+O que fizemos agora foi criar uma image própria, derivada da image `jboss/wildfly`, e apenas adicionamos as configurações necessárias para a inclusão de um usuário de administração do JBoss.
+
+Executemos o comando `sudo docker images`. Com isso, obteremos a seguinte saída:
+[source]
+----
+REPOSITORY           TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+wildfly-management   latest              31961a1179fa        20 seconds ago      929 MB
+fedora               latest              7d3f07f8de5f        About an hour ago   374.1 MB
+jboss/wildfly        latest              bf5508a3f1c7        12 hours ago        929 MB
+----
+
+Executemos o WildFly, novamente, de forma que possamos acessar sua interface administrativa:
+[source,bash]
+----
 sudo docker run -it --rm -p 8080:8080 -p 9990:9990 wildfly-management
 ----
-Dá para explorar, ainda, muito mais coisas... Para isso, veja estas referências:
 
-* Apresentação do Marek Goldmann no VJBUG (Setembro/2014):
+Recarregando a URL http://vm-fedora:8080, agora teremos acesso a interface administrativa após informar o usuário `admin` e a senha `Admin#70365`.
+
+O Docker nos oferece uma forma de visualizar as diferenças entre a image (read-only) e o contêiner. Para isso, precisamos executar um `docker ps -a` (façamos isso em outra console da VM, enquanto o WildFly está executando). Sua saída será similar a esta:
+[source]
+----
+CONTAINER ID        IMAGE                       COMMAND                CREATED             STATUS                           PORTS                                            NAMES
+23661d0835ee        wildfly-management:latest   "/opt/wildfly/bin/st   45 minutes ago      Up 45 minutes                    0.0.0.0:8080->8080/tcp, 0.0.0.0:9990->9990/tcp   naughty_archimedes   
+aa4272a565ca        jboss/wildfly:latest        "/opt/wildfly/bin/st   About an hour ago   Exited (130) 55 minutes ago                                                       dreamy_nobel         
+746e8e569540        jboss/wildfly:latest        "/opt/wildfly/bin/st   About an hour ago   Exited (130) About an hour ago                                                    tender_tesla         
+75653974d524        fedora:latest               "/bin/bash"            About an hour ago   Exited (0) About an hour ago                                                      agitated_goodall
+----
+
+Notemos a coluna `NAMES` nessa saída e utilizemos o seu valor para para o contêiner 236, na execução do comando a seguir:
+[source,bash]
+----
+sudo docker diff naughty_archimedes
+----
+
+A saída desse comando, apresentada abaixo, lista as mudanças no sistema de arquivos, em relação a image:
+[source]
+----
+C /opt/wildfly-8.1.0.Final/standalone
+C /opt/wildfly-8.1.0.Final/standalone/configuration
+C /opt/wildfly-8.1.0.Final/standalone/configuration/logging.properties
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history/current
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history/snapshot
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history/standalone.boot.xml
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history/standalone.initial.xml
+A /opt/wildfly-8.1.0.Final/standalone/configuration/standalone_xml_history/standalone.last.xml
+A /opt/wildfly-8.1.0.Final/standalone/data
+A /opt/wildfly-8.1.0.Final/standalone/data/content
+A /opt/wildfly-8.1.0.Final/standalone/data/timer-service-data
+A /opt/wildfly-8.1.0.Final/standalone/data/tx-object-store
+A /opt/wildfly-8.1.0.Final/standalone/data/tx-object-store/ShadowNoFileLockStore
+A /opt/wildfly-8.1.0.Final/standalone/data/tx-object-store/ShadowNoFileLockStore/defaultStore
+A /opt/wildfly-8.1.0.Final/standalone/log
+A /opt/wildfly-8.1.0.Final/standalone/log/server.log
+C /opt/wildfly-8.1.0.Final/standalone/tmp
+A /opt/wildfly-8.1.0.Final/standalone/tmp/vfs
+A /opt/wildfly-8.1.0.Final/standalone/tmp/vfs/temp
+C /tmp/hsperfdata_wildfly
+A /tmp/hsperfdata_wildfly/53
+----
+
+==== Executando em modo domain
+TODO
+
+==== Explorando mais
+Dá para explorar várias coisas a mais ... Para isso, veja estas referências:
+
+* Apresentação do Marek Goldmann no https://www.youtube.com/channel/UCrAKwbOeiDKtTShxLCKFvNg[Virtual JBoss User Group] (Setembro/2014):
 ** Vídeo: https://www.youtube.com/watch?v=4uQ6gR_xZhE
 ** Exemplos: https://github.com/goldmann/goldmann.pl/tree/master/.presentations/2014-vjbug-docker/demos
 * https://goldmann.pl/blog/2014/03/06/creating-a-minimal-wildfly-docker-image/
