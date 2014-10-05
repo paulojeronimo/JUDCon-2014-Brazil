@@ -1,10 +1,7 @@
 = Hello!
 {author}
 :page-layout: base
-:uri-judcon-2014: http://www.jboss.org/events/JUDCon/2014/
-:uri-judcon-2014-brasil: {uri-judcon-2014}/brazil
-:uri-asciidoctor: http://asciidoctor.org
-:uri-awestruct: http://awestruct.org
+include::links.adoc[]
 
 == What is this?
 This is a very basic and simple static website that I made to present link:./tutorial.html[my tutorial] (brazilian portuguese) on {uri-judcon-2014-brasil}[JUDCon 2014 Brazil].
@@ -20,3 +17,5 @@ They were also integrated with some other cool tools/ technologies:
 . http://slim-lang.com/[Slim]
 
 If you are interested in know how to produce your static website using this tools, check out a http://github.com/paulojeronimo/join-community-2014[tutorial that I presented this year] on http://joincommunity.com.br/[JoinCommunity 2014] and, also, read link:./about.html[this page].
+
+// vim: set syntax=asciidoc:

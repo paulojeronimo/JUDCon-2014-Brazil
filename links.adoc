@@ -1,0 +1,8 @@
+:uri-judcon-2014: http://www.jboss.org/events/JUDCon/2014/
+:uri-judcon-2014-brasil: {uri-judcon-2014}/brazil
+:uri-asciidoctor: http://asciidoctor.org
+:uri-awestruct: http://awestruct.org
+:uri-ruby: http://ruby-lang.org
+:uri-github-judcon-2014-brazil: http://github.com/paulojeronimo/JUDCon-2014-Brazil
+
+// vim: set syntax=asciidoc:
