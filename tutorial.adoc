@@ -383,6 +383,13 @@ sudo docker push paulojeronimo/judcon-2014-brazil
 ----
 O processo de upload pode demorar um pouco dependendo do tamanho da imagem que você está subindo para o Docker Hub. De qualquer forma, após publicada a imagem fica disponível numa URL como essa: https://registry.hub.docker.com/u/paulojeronimo/judcon-2014-brazil/
 
+Oviamente, após ter feito o `push` para o Docker Hub, poderíamos remover o cache local da imagem e executar o comando `pull` para que ela fosse baixada novamente. Se quiséssemos testar isso, executaríamos:
+[source,bash]
+----
+sudo docker rmi <id da imagem paulojeronimo/judcon-2014-brazil>
+sudo docker pull paulojeronimo/judcon-2014-brazil
+----
+
 == Docker em projetos JBoss
 Vários projetos do grupo JBoss estão utilizando o Docker. Leia mais sobre isso nos seguintes links:
 
